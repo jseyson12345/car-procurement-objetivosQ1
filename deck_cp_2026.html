@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car Procurement 2026 · Punto de Situación</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#0a1628; --bg2:#111e35; --bg3:#162240;
+  --teal:#00d4b4; --red:#ff5555; --green:#4ade80; --amber:#fbbf24;
+  --text:#e2e8f0; --text2:#94a3b8;
+  --card:rgba(255,255,255,0.05); --border:rgba(255,255,255,0.1);
+}
+html,body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; overflow:hidden; }
+
+#progress { position:fixed; top:0; left:0; height:3px; background:var(--teal); transition:width .4s; z-index:200; }
+
+.deck { width:100%; height:100vh; position:relative; }
+.slide {
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  padding:36px 56px 76px;
+  opacity:0; transform:translateX(50px);
+  transition:opacity .35s ease, transform .35s ease;
+  pointer-events:none; overflow:hidden;
+}
+.slide.active { opacity:1; transform:translateX(0); pointer-events:all; }
+.slide.out    { opacity:0; transform:translateX(-50px); }
+
+/* HEADER */
+.slide-header { margin-bottom:20px; flex-shrink:0; }
+.slide-tag { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--teal); margin-bottom:6px; }
+.slide-title { font-size:30px; font-weight:800; line-height:1.1; }
+.slide-desc { font-size:13px; color:var(--text2); margin-top:6px; }
+
+/* COVER */
+.slide-cover { justify-content:center; align-items:flex-start; background:radial-gradient(ellipse at 75% 40%, rgba(0,212,180,.12) 0%, transparent 55%); }
+.cover-tag { font-size:12px; letter-spacing:3px; text-transform:uppercase; color:var(--teal); margin-bottom:20px; }
+.cover-title { font-size:78px; font-weight:900; line-height:.95; margin-bottom:16px; }
+.cover-title span { color:var(--teal); }
+.cover-sub { font-size:20px; color:var(--text2); margin-bottom:48px; }
+.cover-meta { display:flex; gap:40px; }
+.cover-meta-item { display:flex; flex-direction:column; gap:4px; }
+.cover-meta-item .lbl { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text2); }
+.cover-meta-item .val { font-size:15px; font-weight:700; color:var(--teal); }
+
+/* TWO-COL */
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:24px; flex:1; min-height:0; }
+.col { display:flex; flex-direction:column; gap:12px; min-height:0; }
+
+/* CARDS */
+.stat-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 18px; flex-shrink:0; }
+.stat-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text2); margin-bottom:5px; }
+.stat-value { font-size:32px; font-weight:900; line-height:1; }
+.stat-value.red { color:var(--red); } .stat-value.green { color:var(--green); }
+.stat-value.amber { color:var(--amber); } .stat-value.teal { color:var(--teal); }
+.stat-sub { font-size:11px; color:var(--text2); margin-top:4px; }
+
+/* CALLOUT */
+.callout { background:rgba(0,212,180,.08); border-left:3px solid var(--teal); border-radius:8px; padding:13px 16px; font-size:13px; line-height:1.65; }
+.callout strong { color:var(--teal); }
+.callout.red { background:rgba(255,85,85,.08); border-left-color:var(--red); }
+.callout.red strong { color:#ff8888; }
+.callout.amber { background:rgba(251,191,36,.08); border-left-color:var(--amber); }
+.callout.amber strong { color:var(--amber); }
+
+/* BADGES */
+.badge { font-size:10px; padding:3px 9px; border-radius:100px; font-weight:700; white-space:nowrap; }
+.badge.red   { background:rgba(255,85,85,.18); color:#ff8888; }
+.badge.green { background:rgba(74,222,128,.18); color:var(--green); }
+.badge.amber { background:rgba(251,191,36,.18); color:var(--amber); }
+
+/* ─── SLIDE 2: OVERVIEW GRID ─── */
+.obj-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; flex:1; }
+.obj-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:8px; transition:border-color .2s; }
+.obj-card:hover { border-color:var(--teal); }
+.obj-card-top { display:flex; justify-content:space-between; align-items:center; }
+.obj-num { font-size:11px; font-weight:700; letter-spacing:1px; color:var(--text2); text-transform:uppercase; }
+.obj-desc { font-size:14px; font-weight:600; line-height:1.4; flex:1; color:var(--text); }
+.obj-detail { font-size:12px; color:var(--text2); }
+.obj-date { font-size:11px; color:var(--text2); border-top:1px solid var(--border); padding-top:8px; }
+
+/* MODEL LIST */
+.model-list { display:flex; flex-direction:column; gap:7px; flex:1; overflow-y:auto; }
+.model-row { display:flex; align-items:center; gap:10px; padding:9px 14px; background:var(--card); border-radius:8px; border:1px solid var(--border); }
+.model-name { flex:1; font-size:12px; }
+.model-partner { font-size:10px; padding:2px 7px; border-radius:100px; white-space:nowrap; }
+.model-bar-wrap { width:100px; height:5px; background:rgba(255,255,255,.1); border-radius:3px; flex-shrink:0; }
+.model-bar { height:5px; border-radius:3px; }
+.model-pct { font-size:11px; font-weight:700; color:var(--text2); min-width:34px; text-align:right; }
+
+/* ─── SLIDE 5: INTERACTIVE ─── */
+.filter-bar { display:flex; gap:24px; align-items:center; padding:10px 16px; background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:10px; flex-shrink:0; }
+.filter-group { display:flex; align-items:center; gap:10px; }
+.filter-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text2); }
+.filter-sep { width:1px; height:24px; background:var(--border); }
+.toggle-btn {
+  font-size:11px; font-weight:600; padding:5px 12px; border-radius:6px;
+  border:1px solid var(--border); background:transparent; color:var(--text2);
+  cursor:pointer; transition:all .2s; white-space:nowrap;
+}
+.toggle-btn.active { background:var(--teal); border-color:var(--teal); color:#000; }
+
+.metrics-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; flex-shrink:0; }
+.metric-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px 16px; transition:all .3s; }
+.metric-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text2); margin-bottom:4px; }
+.metric-val { font-size:28px; font-weight:900; line-height:1; transition:all .3s; }
+.metric-sub { font-size:10px; color:var(--text2); margin-top:3px; }
+
+.onb-split { display:grid; grid-template-columns:1fr 1fr; gap:12px; flex:1; }
+.onb-card { border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:8px; }
+.onb-card.good { background:rgba(74,222,128,.07); border:1px solid rgba(74,222,128,.3); }
+.onb-card.bad  { background:rgba(255,85,85,.07); border:1px solid rgba(255,85,85,.3); }
+.onb-pct { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text2); }
+.onb-val { font-size:44px; font-weight:900; line-height:1; transition:all .3s; }
+.onb-val.green { color:var(--green); } .onb-val.red { color:var(--red); }
+.onb-title { font-size:13px; font-weight:700; }
+.onb-desc { font-size:12px; line-height:1.5; color:var(--text2); }
+
+/* PILL tags */
+.pill { display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:2px 8px; border-radius:100px; font-weight:600; }
+.pill.teal { background:rgba(0,212,180,.15); color:var(--teal); border:1px solid rgba(0,212,180,.3); }
+.pill.amber { background:rgba(251,191,36,.15); color:var(--amber); border:1px solid rgba(251,191,36,.3); }
+
+/* UF LIST */
+.uf-list { display:flex; flex-direction:column; gap:5px; overflow-y:auto; flex:1; }
+.uf-row { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; background:var(--card); }
+.uf-name { flex:1; font-size:12px; }
+.uf-vol { font-size:10px; color:var(--text2); min-width:55px; text-align:right; }
+.uf-val { font-size:12px; font-weight:800; min-width:60px; text-align:right; }
+.uf-val.red { color:var(--red); } .uf-val.amber { color:var(--amber); } .uf-val.green { color:var(--green); }
+
+/* PVP GRID */
+.pvp-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.pvp-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:11px 14px; display:flex; justify-content:space-between; align-items:center; }
+.pvp-model-name { font-size:12px; font-weight:700; }
+.pvp-detail { font-size:10px; color:var(--text2); margin-top:2px; }
+.pvp-delta { font-size:13px; font-weight:800; }
+.pvp-delta.down { color:var(--green); } .pvp-delta.up { color:var(--red); }
+
+/* CONTROL ROW */
+.control-item { padding:11px 14px; border-radius:10px; font-size:13px; line-height:1.5; border-left:3px solid; }
+.control-item.green { background:rgba(74,222,128,.08); border-color:var(--green); }
+.control-item.red   { background:rgba(255,85,85,.08); border-color:var(--red); }
+.control-item.neutral { background:rgba(148,163,184,.08); border-color:var(--text2); }
+.control-tag { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:3px; }
+.control-tag.green { color:var(--green); } .control-tag.red { color:var(--red); } .control-tag.neutral { color:var(--text2); }
+
+/* STATUS BIG */
+.status-big { display:flex; align-items:center; gap:18px; padding:20px 22px; background:var(--card); border:1px solid var(--border); border-radius:14px; flex-shrink:0; }
+.status-icon { font-size:38px; flex-shrink:0; }
+.status-title { font-size:19px; font-weight:800; margin-bottom:4px; }
+.status-sub { font-size:13px; color:var(--text2); line-height:1.5; }
+a { color:var(--teal); }
+
+.feature-list { display:flex; flex-direction:column; gap:10px; }
+.feature-item { display:flex; gap:10px; align-items:flex-start; }
+.feature-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+.feature-title { font-size:13px; font-weight:700; margin-bottom:1px; }
+.feature-desc { font-size:11px; color:var(--text2); }
+
+/* CIERRE */
+.cierre-grid { display:grid; grid-template-columns:1fr 1fr; gap:22px; flex:1; }
+.cierre-col-title { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+.cierre-items { display:flex; flex-direction:column; gap:8px; }
+.cierre-item { padding:11px 14px; border-radius:10px; font-size:13px; line-height:1.5; }
+.cierre-item.green { background:rgba(74,222,128,.08); border:1px solid rgba(74,222,128,.18); }
+.cierre-item.red   { background:rgba(255,85,85,.08); border:1px solid rgba(255,85,85,.18); }
+
+/* TOOLTIP */
+.tooltip-wrap { position:relative; display:inline-block; cursor:help; border-bottom:1px dashed var(--teal); }
+.tooltip-box { display:none; position:absolute; bottom:120%; left:50%; transform:translateX(-50%); background:#1e3050; border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:11px; line-height:1.5; width:260px; color:var(--text2); z-index:50; pointer-events:none; }
+.tooltip-wrap:hover .tooltip-box { display:block; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:2px; }
+
+/* NAV */
+.nav { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:14px; background:rgba(10,22,40,.92); backdrop-filter:blur(12px); border:1px solid var(--border); border-radius:100px; padding:8px 20px; z-index:100; }
+.nav-btn { width:28px; height:28px; border-radius:50%; border:1px solid var(--border); background:transparent; color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; transition:all .2s; }
+.nav-btn:hover { background:var(--teal); border-color:var(--teal); color:#000; }
+.dots { display:flex; gap:5px; align-items:center; }
+.dot { width:6px; height:6px; border-radius:50%; background:var(--border); cursor:pointer; transition:all .2s; }
+.dot.active { width:18px; border-radius:3px; background:var(--teal); }
+.nav-count { font-size:11px; color:var(--text2); min-width:38px; text-align:center; }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div class="deck">
+
+<!-- ══════════ SLIDE 1: COVER ══════════ -->
+<div class="slide slide-cover active" id="s1">
+  <div class="cover-tag">Car Procurement · REVEL España</div>
+  <h1 class="cover-title">Objetivos<br><span>CP 2026</span></h1>
+  <p class="cover-sub">Punto de situación &nbsp;·&nbsp; Mayo 2026</p>
+  <div class="cover-meta">
+    <div class="cover-meta-item"><span class="lbl">Presentado por</span><span class="val">Laura</span></div>
+    <div class="cover-meta-item"><span class="lbl">Equipo</span><span class="val">Car Procurement</span></div>
+    <div class="cover-meta-item"><span class="lbl">Objetivos en revisión</span><span class="val">8 objetivos</span></div>
+    <div class="cover-meta-item"><span class="lbl">Transacciones analizadas</span><span class="val">+25.000</span></div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 2: OVERVIEW ══════════ -->
+<div class="slide" id="s2">
+  <div class="slide-header">
+    <div class="slide-tag">Resumen ejecutivo</div>
+    <h2 class="slide-title">Estado de los 8 objetivos</h2>
+    <p class="slide-desc">Los números cuentan una historia — el contexto es imprescindible para leerla bien.</p>
+  </div>
+  <div class="obj-grid">
+    <div class="obj-card">
+      <div class="obj-card-top"><span class="obj-num">Obj. 1</span><span class="badge red">Fuera de objetivo</span></div>
+      <p class="obj-desc">Ninguna LeaseCo con &gt;45% del volumen de ventas</p>
+      <div class="obj-detail" style="color:var(--red);font-weight:700;">Santander: 77%</div>
+      <span class="obj-date">📅 30/03/2026</span>
+    </div>
+    <div class="obj-card">
+      <div class="obj-card-top"><span class="obj-num">Obj. 2</span><span class="badge red">Fuera de objetivo</span></div>
+      <p class="obj-desc">Ninguna LeaseCo con &gt;25% del volumen de ventas</p>
+      <div class="obj-detail" style="color:var(--red);font-weight:700;">Santander: 67%</div>
+      <span class="obj-date">📅 30/05/2026</span>
+    </div>
+    <div class="obj-card">
+      <div class="obj-card-top"><span class="obj-num">Obj. 3</span><span class="badge red">Fuera de objetivo</span></div>
+      <p class="obj-desc">Desviación mediana entre Min Inicial y entrega real ≤ 10 días</p>
+      <div class="obj-detail" style="color:var(--red);font-weight:700;">Mediana actual: 16 días</div>
+      <span class="obj-date">📅 30/04/2026</span>
+    </div>
+    <div class="obj-card">
+      <div class="obj-card-top"><span class="obj-num">Obj. 4</span><span class="badge red">Fuera de objetivo</span></div>
+      <p class="obj-desc">Desviación mediana entre Min Inicial y entrega real = 0 días</p>
+      <div class="obj-detail" style="color:var(--red);font-weight:700;">Mediana actual: 16 días</div>
+      <span class="obj-date">📅 30/06/2026</span>
+    </div>
+    <div class="obj-card">
+      <div class="obj-card-top"><span class="obj-num">Obj. 5</span><span class="badge green">✅ En objetivo</span></div>
+      <p class="obj-desc">REVEL UF medio &lt; 350€</p>
+      <div class="obj-detail" style="color:var(--green);font-weight:700;">REVEL UF actual: 333€</div>
+      <span class="obj-date">📅 30/03/2026</span>
+    </div>
+    <div class="obj-card">
+      <div class="obj-card-top"><span class="obj-num">Obj. 6</span><span class="badge red">Fuera de objetivo</span></div>
+      <p class="obj-desc">REVEL UF medio &lt; 200€</p>
+      <div class="obj-detail" style="color:var(--red);font-weight:700;">REVEL UF actual: 333€</div>
+      <span class="obj-date">📅 30/06/2026</span>
+    </div>
+    <div class="obj-card">
+      <div class="obj-card-top"><span class="obj-num">Obj. 7</span><span class="badge amber">Esta semana ✅</span></div>
+      <p class="obj-desc">Sistema de control de stock y pipeline de pedidos 100% operativo</p>
+      <div class="obj-detail" style="color:var(--amber);font-weight:700;">Jey's Playground v1.0</div>
+      <span class="obj-date">📅 30/03/2026</span>
+    </div>
+    <div class="obj-card">
+      <div class="obj-card-top"><span class="obj-num">Obj. 8</span><span class="badge red">Aparcado</span></div>
+      <p class="obj-desc">Listos para lanzar coches a 48 meses con precios competitivos</p>
+      <div class="obj-detail" style="color:var(--red);font-weight:700;">Números no viables en mercado actual</div>
+      <span class="obj-date">📅 28/02/2026</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 3: OBJ 1&2 DATOS ══════════ -->
+<div class="slide" id="s3">
+  <div class="slide-header">
+    <div class="slide-tag">Objetivos 1 & 2 · Concentración LeaseCo</div>
+    <h2 class="slide-title">Santander copa el mix — la demanda lo explica todo</h2>
+    <p class="slide-desc">Distribución de ventas por partner/LeaseCo · 2026</p>
+  </div>
+  <div class="two-col">
+    <div class="col">
+      <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Q1 2026 · Obj 1 (ninguna &gt;45%) · 5.193 unidades</div>
+      <div style="position:relative;height:160px;flex:none;"><canvas id="c-q1"></canvas></div>
+      <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;margin-top:6px;">Ene–May 2026 · Obj 2 (ninguna &gt;25%) · 7.255 unidades</div>
+      <div style="position:relative;height:160px;flex:none;"><canvas id="c-q2"></canvas></div>
+    </div>
+    <div class="col">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="stat-card">
+          <div class="stat-label">Santander · Q1 2026</div>
+          <div class="stat-value red">77%</div>
+          <div class="stat-sub">Target: &lt;45%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Santander · Ene–May</div>
+          <div class="stat-value red">67%</div>
+          <div class="stat-sub">Target: &lt;25%</div>
+        </div>
+      </div>
+      <div class="callout">
+        <strong>¿Por qué Santander?</strong> Los leads que llegan a REVEL buscan precio, y el catálogo más competitivo en el segmento de entrada es Santander. Los 3 modelos más vendidos — 208, Corsa e Ibiza — suman el <strong>47% del volumen</strong>. Los tres son Santander. Compras no escoge Santander: <strong>la demanda lo escoge</strong>.
+      </div>
+      <div class="callout red">
+        <strong>Círculo vicioso con Growth:</strong> Compras trae ofertas competitivas de otros fabricantes. Growth rechaza los pedidos a fábrica por <strong>falta de volumen previo</strong>. Sin stock → sin ventas → sin volumen → rechazo. El bloqueo es estructural.
+      </div>
+      <div style="padding:12px 16px;background:rgba(0,212,180,.06);border:1px solid rgba(0,212,180,.2);border-radius:10px;font-size:12px;line-height:1.6;">
+        <strong style="color:var(--teal);">Palanca futura — Ayvens:</strong> Una vía real para diluir el peso de Santander sería incorporar más volumen con <strong>Ayvens</strong>, uno de los LeaseCos más grandes del mundo. Estamos empezando a trabajar con ellos, pero hoy todavía no tenemos un acuerdo sólido: crédito limitado y precios aún no competitivos. La negociación de fondo (línea de crédito, condiciones marco) necesita implicación a nivel de COO. No es una excusa — es el siguiente paso.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 4: OBJ 1&2 ARGUMENTO ══════════ -->
+<div class="slide" id="s4">
+  <div class="slide-header">
+    <div class="slide-tag">Objetivos 1 & 2 · El argumento</div>
+    <h2 class="slide-title">La demanda dicta el mix. Compras no puede más que el mercado.</h2>
+    <p class="slide-desc">Top modelos por % de ventas netas · 2026</p>
+  </div>
+  <div class="two-col">
+    <div class="col">
+      <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Top modelos · % ventas netas</div>
+      <div class="model-list">
+        <div class="model-row"><span class="model-name">Peugeot 208 Allure</span><span class="model-partner" style="background:rgba(255,85,85,.15);color:#ff8888;">Santander</span><div class="model-bar-wrap"><div class="model-bar" style="width:100%;background:var(--red)"></div></div><span class="model-pct">29.6%</span></div>
+        <div class="model-row"><span class="model-name">Opel Corsa 1.2T GS</span><span class="model-partner" style="background:rgba(255,85,85,.15);color:#ff8888;">Santander</span><div class="model-bar-wrap"><div class="model-bar" style="width:44%;background:var(--red)"></div></div><span class="model-pct">13.0%</span></div>
+        <div class="model-row"><span class="model-name">Seat Ibiza 1.0 MPI Style+</span><span class="model-partner" style="background:rgba(255,85,85,.15);color:#ff8888;">Santander</span><div class="model-bar-wrap"><div class="model-bar" style="width:16%;background:var(--red)"></div></div><span class="model-pct">4.7%</span></div>
+        <div class="model-row"><span class="model-name">Jeep Avenger e-Hybrid</span><span class="model-partner" style="background:rgba(255,85,85,.15);color:#ff8888;">Santander</span><div class="model-bar-wrap"><div class="model-bar" style="width:16%;background:var(--red)"></div></div><span class="model-pct">4.6%</span></div>
+        <div class="model-row"><span class="model-name">Peugeot 2008 Hybrid</span><span class="model-partner" style="background:rgba(0,212,180,.15);color:var(--teal);">Athlon</span><div class="model-bar-wrap"><div class="model-bar" style="width:12%;background:var(--teal)"></div></div><span class="model-pct">3.4%</span></div>
+        <div class="model-row"><span class="model-name">Opel Frontera Hybrid GS</span><span class="model-partner" style="background:rgba(0,212,180,.15);color:var(--teal);">Athlon</span><div class="model-bar-wrap"><div class="model-bar" style="width:8%;background:var(--teal)"></div></div><span class="model-pct">2.5%</span></div>
+        <div class="model-row"><span class="model-name">Toyota C-HR 140H Advance</span><span class="model-partner" style="background:rgba(251,191,36,.15);color:var(--amber);">Kinto</span><div class="model-bar-wrap"><div class="model-bar" style="width:7%;background:var(--amber)"></div></div><span class="model-pct">2.2%</span></div>
+        <div class="model-row"><span class="model-name">Jeep Avenger 1.2T ICE</span><span class="model-partner" style="background:rgba(255,85,85,.15);color:#ff8888;">Santander</span><div class="model-bar-wrap"><div class="model-bar" style="width:8%;background:var(--red)"></div></div><span class="model-pct">2.5%</span></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="stat-card" style="display:flex;gap:20px;align-items:center;">
+        <div><div class="stat-label">Segmento Compacto</div><div class="stat-value red">52%</div><div class="stat-sub">de todas las ventas 2026</div></div>
+        <div style="height:50px;width:1px;background:var(--border);flex-shrink:0;"></div>
+        <div><div class="stat-label">Top 3 (todos Santander)</div><div class="stat-value red">47%</div><div class="stat-sub">del volumen total</div></div>
+      </div>
+      <div class="callout" style="flex:1;">
+        <strong>La lógica es simple:</strong> Si el 52% de la demanda es segmento de entrada y ese segmento pertenece mayoritariamente a Santander, la concentración es una <strong>consecuencia matemática del mix de demanda</strong>.<br><br>
+        La palanca para diversificar LeaseCos está en Growth/Marketing: <strong>atraer leads de segmentos con más variedad de partners</strong>. Compras no puede forzar al cliente a querer un Athlon o un Kinto.
+      </div>
+      <div style="padding:12px 16px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:10px;font-size:12px;line-height:1.6;">
+        <strong style="color:var(--amber);">La conversación pendiente:</strong> Para resolver los Obj 1 y 2 hace falta alineación entre Compras, Growth y dirección sobre qué perfil de cliente queremos atraer <em>y</em> acelerar la negociación marco con Ayvens.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 5: OBJ 3&4 INTERACTIVO ══════════ -->
+<div class="slide" id="s5">
+  <div class="slide-header">
+    <div class="slide-tag">Objetivos 3 & 4 · Plazos de entrega</div>
+    <h2 class="slide-title">CP pone el coche en "Entregable desde" a tiempo. El retraso está después.</h2>
+    <p class="slide-desc">3.133 entregas reales 2026 · Hubspot · Filtros activos abajo</p>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <span class="filter-label">Modelos</span>
+    <div class="filter-group">
+      <button class="toggle-btn active" id="btn-all-models" onclick="setFilter('models','all')">Todos (3.133)</button>
+      <button class="toggle-btn" id="btn-wr-models" onclick="setFilter('models','wr')">Solo Waiting Rooms (2.207)</button>
+    </div>
+    <div class="filter-sep"></div>
+    <span class="filter-label">Onboarding</span>
+    <div class="filter-group">
+      <button class="toggle-btn active" id="btn-all-onb" onclick="setFilter('onb','all')">Todos</button>
+      <button class="toggle-btn" id="btn-con-onb" onclick="setFilter('onb','con')">Con onboarding previo</button>
+      <button class="toggle-btn" id="btn-sin-onb" onclick="setFilter('onb','sin')">Sin onboarding previo</button>
+    </div>
+  </div>
+
+  <!-- METRICS -->
+  <div class="metrics-grid" style="margin-top:10px;">
+    <div class="metric-card">
+      <div class="metric-label">Entregable desde vs Min Inicial (W)</div>
+      <div class="metric-val green" id="m-w">-1 día</div>
+      <div class="metric-sub">CP en plazo ✅</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Desviación total mediana (X)</div>
+      <div class="metric-val red" id="m-x">+16 días</div>
+      <div class="metric-sub" id="m-x-sub">Obj 3: ≤10d · Obj 4: 0d</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Deals en este filtro</div>
+      <div class="metric-val teal" id="m-n">3.133</div>
+      <div class="metric-sub" id="m-n-sub">100% de la muestra</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Desv. estándar (X)</div>
+      <div class="metric-val" style="color:var(--text2);font-size:22px;" id="m-std">±40.8d</div>
+      <div class="metric-sub">Alta variabilidad</div>
+    </div>
+  </div>
+
+  <!-- SPLIT CON/SIN ONBOARDING -->
+  <div class="onb-split" style="margin-top:10px;">
+    <div class="onb-card good" id="card-con">
+      <div class="onb-pct" id="pct-con">🟢 20.9% de los deals (654)</div>
+      <div class="onb-val green" id="val-con">-4 días</div>
+      <div class="onb-title" style="color:var(--green);">Cliente hizo Onboarding antes de que el coche estuviese listo</div>
+      <div class="onb-desc">El coche llega a <strong style="color:var(--text);">Entregable desde</strong> y el cliente ya tiene el Onboarding hecho → entra al <span class="pill teal">Waiting Room</span> con máxima prioridad. Resultado: entrega <strong style="color:var(--green);">anticipada</strong>.</div>
+    </div>
+    <div class="onb-card bad" id="card-sin">
+      <div class="onb-pct" id="pct-sin">🔴 79.1% de los deals (2.479)</div>
+      <div class="onb-val red" id="val-sin">+20 días</div>
+      <div class="onb-title" style="color:var(--red);">Cliente NO hizo Onboarding previo</div>
+      <div class="onb-desc">El coche está en <strong style="color:var(--text);">Entregable desde</strong> pero el cliente no ha completado el Onboarding (DNI, pago, facial). En el <span class="pill amber">Waiting Room</span> es <strong style="color:var(--text);">despriorizado</strong> frente a clientes listos → retraso acumulado.</div>
+    </div>
+  </div>
+
+  <!-- FOOTER NOTE -->
+  <div style="margin-top:8px;font-size:11px;color:var(--text2);line-height:1.5;">
+    <strong style="color:var(--amber);">Onboarding</strong> = escanear DNI + carnet, dar de alta método de pago y completar reconocimiento facial. Un proceso de minutos que el cliente debería hacer justo tras firmar su contrato REVEL. &nbsp;|&nbsp;
+    <strong style="color:var(--teal);">Waiting Rooms</strong> = proceso diario de reasignación: cuadramos fecha prometida del cliente (Min Inicial) con fecha estimada de disponibilidad del coche (Entregable desde). Los modelos que participan: 208, Corsa, Junior, Avenger, C4, C4 X, Frontera, Mokka, 2008, 3008. &nbsp;|&nbsp;
+    <strong style="color:var(--text2);">Extracción Min Inicial</strong>: requirió 2 macros en Hubspot por la complejidad del histórico de cambios. Dato crítico, difícil de medir → Obj 7 lo resuelve.
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 6: OBJ 5&6 REVEL UF ══════════ -->
+<div class="slide" id="s6">
+  <div class="slide-header">
+    <div class="slide-tag">Objetivos 5 & 6 · REVEL UF</div>
+    <h2 class="slide-title">El REVEL UF alto es el coste del <span class="tooltip-wrap">blitzscaling<span class="tooltip-box">Blitzscaling: estrategia de crecimiento acelerado que prioriza el volumen sobre la rentabilidad por unidad en fases tempranas de una startup, para ganar cuota de mercado rápidamente.</span></span> — no un error de Compras</h2>
+    <p class="slide-desc">REVEL UF negativo = profit para REVEL &nbsp;·&nbsp; REVEL UF positivo = subsidio por unidad &nbsp;·&nbsp; 18.308 transacciones</p>
+  </div>
+  <div class="two-col">
+    <div class="col">
+      <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">REVEL UF medio por modelo · 2026 (top volumen)</div>
+      <div class="uf-list">
+        <div class="uf-row"><span class="uf-name">Seat Ibiza</span><span class="uf-vol">506 uds</span><span class="uf-val red">+678€ 🔴</span></div>
+        <div class="uf-row"><span class="uf-name">Renault Captur</span><span class="uf-vol">100 uds</span><span class="uf-val red">+635€ 🔴</span></div>
+        <div class="uf-row"><span class="uf-name">Peugeot 208</span><span class="uf-vol">2.014 uds</span><span class="uf-val red">+622€ 🔴</span></div>
+        <div class="uf-row"><span class="uf-name">Opel Mokka</span><span class="uf-vol">~150 uds</span><span class="uf-val red">+620€ 🔴</span></div>
+        <div class="uf-row"><span class="uf-name">Opel Corsa</span><span class="uf-vol">1.030 uds</span><span class="uf-val amber">+408€</span></div>
+        <div class="uf-row"><span class="uf-name">Peugeot 3008</span><span class="uf-vol">125 uds</span><span class="uf-val amber">+362€</span></div>
+        <div class="uf-row"><span class="uf-name">Ford Puma</span><span class="uf-vol">220 uds</span><span class="uf-val amber">+264€</span></div>
+        <div class="uf-row"><span class="uf-name">Toyota C-HR</span><span class="uf-vol">745 uds</span><span class="uf-val amber">+230€</span></div>
+        <div class="uf-row"><span class="uf-name">Citroen C4</span><span class="uf-vol">127 uds</span><span class="uf-val amber">+171€</span></div>
+        <div class="uf-row"><span class="uf-name">Toyota Yaris Cross</span><span class="uf-vol">500 uds</span><span class="uf-val green">+13€</span></div>
+        <div class="uf-row"><span class="uf-name">Peugeot 2008</span><span class="uf-vol">152 uds</span><span class="uf-val green">-21€ ✅</span></div>
+        <div class="uf-row"><span class="uf-name">Jeep Avenger</span><span class="uf-vol">603 uds</span><span class="uf-val green">-219€ ✅</span></div>
+        <div class="uf-row"><span class="uf-name">Opel Frontera</span><span class="uf-vol">250 uds</span><span class="uf-val green">-366€ ✅</span></div>
+      </div>
+    </div>
+    <div class="col">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="stat-card"><div class="stat-label">REVEL UF medio 2025</div><div class="stat-value red">416€</div></div>
+        <div class="stat-card"><div class="stat-label">REVEL UF medio 2026</div><div class="stat-value amber">333€</div><div class="stat-sub">↓83€ vs año anterior</div></div>
+        <div class="stat-card" style="border-color:rgba(74,222,128,.3);"><div class="stat-label">Obj 5 · &lt;350€ ✅</div><div class="stat-value green">333€</div><div class="stat-sub">Cumplido</div></div>
+        <div class="stat-card" style="border-color:rgba(255,85,85,.3);"><div class="stat-label">Obj 6 · &lt;200€ ❌</div><div class="stat-value red">333€</div><div class="stat-sub">Lejos del objetivo</div></div>
+      </div>
+      <div class="callout" style="flex:1;">
+        <strong>¿Por qué el REVEL UF es alto?</strong><br><br>
+        Los modelos más vendidos son los más asequibles para el cliente. Para mantenerlos así, <strong>Growth fija un Precio objetivo por debajo del PVP base</strong> (coste de sourcing de CP).<br><br>
+        REVEL absorbe la diferencia como subsidio (REVEL UF positivo).<br><br>
+        Ejemplo real: <strong>Peugeot 208</strong> → PVP base de Compras: <strong>325€/mes</strong>. Precio objetivo de Growth: <strong>298€/mes</strong>. REVEL subsidia <strong>622€/unidad</strong> × 2.014 unidades = ~<strong>1,25M€</strong> de coste estratégico.<br><br>
+        <strong>Es una decisión de pricing estratégico</strong>, no un fallo de Compras.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 7: OBJ 5&6 PVP ══════════ -->
+<div class="slide" id="s7">
+  <div class="slide-header">
+    <div class="slide-tag">Objetivos 5 & 6 · Lo que depende de Compras</div>
+    <h2 class="slide-title">El PVP base — lo que controlamos — lleva todo el año mejorando</h2>
+    <p class="slide-desc">Evolución del coste de sourcing en 40 modelos comunes 2025→2026 · entorno macro muy adverso: tipos altos, inflación, guerras comerciales</p>
+  </div>
+  <div class="two-col">
+    <div class="col">
+      <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">PVP base 2025 vs 2026 · mismos modelos</div>
+      <div class="pvp-grid">
+        <div class="pvp-card"><div><div class="pvp-model-name">Peugeot 3008</div><div class="pvp-detail">591€ → 485€/mes</div></div><span class="pvp-delta down">-106€ 🟢</span></div>
+        <div class="pvp-card"><div><div class="pvp-model-name">Hyundai Tucson</div><div class="pvp-detail">563€ → 530€/mes</div></div><span class="pvp-delta down">-33€ 🟢</span></div>
+        <div class="pvp-card"><div><div class="pvp-model-name">Jeep Avenger</div><div class="pvp-detail">443€ → 417€/mes</div></div><span class="pvp-delta down">-27€ 🟢</span></div>
+        <div class="pvp-card"><div><div class="pvp-model-name">Opel Frontera</div><div class="pvp-detail">409€ → 395€/mes</div></div><span class="pvp-delta down">-15€ 🟢</span></div>
+        <div class="pvp-card"><div><div class="pvp-model-name">Opel Corsa</div><div class="pvp-detail">343€ → 330€/mes</div></div><span class="pvp-delta down">-12€ 🟢</span></div>
+        <div class="pvp-card"><div><div class="pvp-model-name">Ford Puma</div><div class="pvp-detail">404€ → 392€/mes</div></div><span class="pvp-delta down">-11€ 🟢</span></div>
+        <div class="pvp-card"><div><div class="pvp-model-name">Peugeot 208</div><div class="pvp-detail">327€ → 325€/mes</div></div><span class="pvp-delta down">-1€ 🟢</span></div>
+        <div class="pvp-card" style="border-color:rgba(255,85,85,.3);"><div><div class="pvp-model-name">Opel Mokka</div><div class="pvp-detail">409€ → 418€/mes</div></div><span class="pvp-delta up">+10€ 🔴</span></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="stat-card">
+        <div class="stat-label">Modelos con PVP base mejorado en 2026</div>
+        <div class="stat-value green">68%</div>
+        <div class="stat-sub">27 de 40 modelos comunes 2025–2026</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;flex:1;">
+        <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">¿Qué controla cada equipo?</div>
+        <div class="control-item green"><div class="control-tag green">✅ Compras controla</div>PVP base → coste de sourcing negociado con LeaseCo. <strong style="color:var(--green);">Mejorando en el 68% de los modelos.</strong></div>
+        <div class="control-item red"><div class="control-tag red">❌ Growth controla</div>Precio objetivo → precio al que se ofrece el coche al cliente. Determina el subsidio (REVEL UF).</div>
+        <div class="control-item neutral"><div class="control-tag neutral">📊 Resultado</div>REVEL UF = Precio objetivo − PVP base. Si Precio objetivo &lt; PVP base, REVEL subsidia la diferencia. No controlable por Compras.</div>
+      </div>
+      <div class="callout red">
+        Con tipos altos e incertidumbre en fabricantes, <strong>bajar el PVP base un euro</strong> requiere trabajo real de negociación. El equipo lo está consiguiendo en 2 de cada 3 modelos. El modelo que ha empeorado (Mokka, +10€) refleja presión real del fabricante, no falta de gestión.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 8: OBJ 7 ══════════ -->
+<div class="slide" id="s8">
+  <div class="slide-header">
+    <div class="slide-tag">Objetivo 7 · Sistema de control de stock y pipeline</div>
+    <h2 class="slide-title">Jey's Playground v1.0 — ya está montada</h2>
+    <p class="slide-desc">Deadline: 30/03/2026 · Estado: entregado esta semana</p>
+  </div>
+  <div class="two-col">
+    <div class="col">
+      <div class="status-big" style="border-color:rgba(74,222,128,.3);">
+        <span class="status-icon">🛠️</span>
+        <div class="status-content">
+          <div class="status-title">Jey's Playground</div>
+          <div class="status-sub">Herramienta de visibilidad de stock y pipeline de pedidos. No es un dashboard pasivo — genera recomendaciones concretas accionables hoy. <a href="https://jey-s-playground.vercel.app/" target="_blank">jey-s-playground.vercel.app</a></div>
+        </div>
+        <span class="badge green" style="flex-shrink:0;padding:8px 14px;font-size:12px;">✅ Lista</span>
+      </div>
+      <div class="callout" style="flex:1;">
+        <strong>¿Por qué importa esto más de lo que parece?</strong><br><br>
+        El análisis de los Obj 3 y 4 es concluyente: cuando el coche llega a <strong>Entregable desde</strong> antes de que el cliente complete su Onboarding, la entrega es <strong>4 días anticipada</strong>. Cuando llega después, hay 20 días de retraso acumulado.<br><br>
+        El 79% de los retrasos son del segundo caso. <strong>Esta herramienta es la solución estructural</strong>: permite anticipar qué coches estarán disponibles, cuándo y renegociar antes de que se rompa la promesa al cliente.
+      </div>
+    </div>
+    <div class="col">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;flex:1;display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
+        <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;">Lo que hace la v1.0</div>
+        <div class="feature-list">
+          <div class="feature-item"><span class="feature-icon">📊</span><div><div class="feature-title">Qué modelos estamos vendiendo y a qué ritmo</div><div class="feature-desc">Unidades vendidas por modelo y mes, con tendencia.</div></div></div>
+          <div class="feature-item"><span class="feature-icon">⏱️</span><div><div class="feature-title">Lead time de pedido por modelo</div><div class="feature-desc">Cuánto tarda en llegar un nuevo pedido a fábrica para cada modelo. Insumo directo para los Waiting Rooms.</div></div></div>
+          <div class="feature-item"><span class="feature-icon">🔍</span><div><div class="feature-title">Demanda de modelos fuera de web</div><div class="feature-desc">Detecta modelos que ya no están disponibles pero que siguen generando demanda real → señal para renegociar con LeaseCo.</div></div></div>
+          <div class="feature-item"><span class="feature-icon">📦</span><div><div class="feature-title">Pipeline de pedidos en curso</div><div class="feature-desc">Tracking de todos los pedidos activos: estado, fecha estimada de llegada y asignación a cliente.</div></div></div>
+          <div class="feature-item" style="padding:10px 12px;background:rgba(0,212,180,.08);border:1px solid rgba(0,212,180,.2);border-radius:10px;">
+            <span class="feature-icon">🎯</span>
+            <div><div class="feature-title" style="color:var(--teal);">Tips accionables, ranked por urgencia</div><div class="feature-desc" style="color:var(--text);">El tool no es un dashboard pasivo. Genera recomendaciones concretas: <em style="color:var(--teal);">"Renegocia Lexus LBX con KINTO YA — perdiste 21 ventas/día en los últimos 30 días con demanda confirmada."</em> Abres la app y sabes qué hacer hoy.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 9: OBJ 8 ══════════ -->
+<div class="slide" id="s9">
+  <div class="slide-header">
+    <div class="slide-tag">Objetivo 8 · Coches a 48 meses</div>
+    <h2 class="slide-title">Lo intentamos de todas las formas. Los números no daban.</h2>
+    <p class="slide-desc">Deadline: 28/02/2026 · Estado: aparcado por inviabilidad financiera en el mercado actual</p>
+  </div>
+  <div class="two-col">
+    <div class="col">
+      <div class="status-big" style="border-color:rgba(255,85,85,.3);">
+        <span class="status-icon">🚗</span>
+        <div class="status-content">
+          <div class="status-title">Lanzar coches a 48 meses con precios competitivos</div>
+          <div class="status-sub">Explorado en profundidad. Múltiples configuraciones y negociaciones con LeaseCos. Resultado: no viable para el cliente en las condiciones actuales.</div>
+        </div>
+        <span class="badge red" style="flex-shrink:0;padding:8px 14px;font-size:12px;">Aparcado</span>
+      </div>
+      <div class="callout red" style="flex:1;">
+        <strong>El problema es estructural, no de ejecución.</strong><br><br>
+        Las cuotas a 48 meses salían <strong>más caras que a 36 meses</strong> para el cliente. Pagar más por un contrato más largo no tiene ningún sentido para el usuario. Lanzarlo hubiera sido un fracaso comercial garantizado.<br><br>
+        Aparcar el proyecto fue la decisión correcta — aunque duela. El equipo lo exploró con rigor y honestidad, y eso también es trabajo bien hecho.
+      </div>
+    </div>
+    <div class="col">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;flex:1;display:flex;flex-direction:column;gap:12px;">
+        <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;">¿Por qué 48 meses sale más caro?</div>
+        <div style="display:flex;flex-direction:column;gap:10px;flex:1;justify-content:center;">
+          <div style="padding:12px 14px;background:rgba(255,85,85,.08);border:1px solid rgba(255,85,85,.18);border-radius:10px;">
+            <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Tipos de interés altos</div>
+            <div style="font-size:13px;line-height:1.6;">El coste de financiación a 4 años es significativamente mayor que a 3. Los LeaseCos trasladan ese sobrecoste a la cuota mensual.</div>
+          </div>
+          <div style="padding:12px 14px;background:rgba(255,85,85,.08);border:1px solid rgba(255,85,85,.18);border-radius:10px;">
+            <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Valor residual incierto</div>
+            <div style="font-size:13px;line-height:1.6;">Con la transición eléctrica en curso, los LeaseCos no pueden fijar un valor residual competitivo a 4 años. Mayor riesgo → cuota más alta.</div>
+          </div>
+          <div style="padding:12px 14px;background:rgba(255,85,85,.08);border:1px solid rgba(255,85,85,.18);border-radius:10px;">
+            <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Incertidumbre geopolítica</div>
+            <div style="font-size:13px;line-height:1.6;">Guerras comerciales, aranceles y volatilidad de precios de vehículos hacen que el riesgo a 48 meses sea estructuralmente mayor que a 36.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 10: CIERRE ══════════ -->
+<div class="slide" id="s10">
+  <div class="slide-header">
+    <div class="slide-tag">Cierre</div>
+    <h2 class="slide-title">Lo que depende de nosotros, lo ejecutamos. Lo que no, tiene nombre y apellidos.</h2>
+  </div>
+  <div class="cierre-grid">
+    <div>
+      <div class="cierre-col-title" style="color:var(--green);">✅ En nuestras manos — y lo hemos hecho</div>
+      <div class="cierre-items">
+        <div class="cierre-item green"><strong>PVP base mejorado en el 68% de modelos</strong> a pesar de tipos altos, inflación y guerras comerciales. La negociación con LeaseCos está funcionando.</div>
+        <div class="cierre-item green"><strong>CP pone el coche en "Entregable desde" a tiempo</strong> (mediana W = -1 día). Cuando el cliente ha hecho Onboarding, entregamos 4 días antes de lo prometido.</div>
+        <div class="cierre-item green"><strong>Obj 5 cumplido</strong>: REVEL UF medio 2026 = 333€ (&lt;350€). Mejora de 83€/unidad vs 2025 con el mismo mix de demanda.</div>
+        <div class="cierre-item green"><strong>Jey's Playground v1.0 lista</strong>: visibilidad de stock, pipeline, lead times y tips accionables. La herramienta que cierra el loop de los Obj 3&4.</div>
+        <div class="cierre-item green"><strong>48 meses explorado con rigor y honestidad</strong>. Aparcado porque los números no dan para el cliente — tomar esa decisión también es trabajo bien hecho.</div>
+      </div>
+    </div>
+    <div>
+      <div class="cierre-col-title" style="color:var(--red);">🔴 Fuera de nuestras manos — tiene nombre y apellidos</div>
+      <div class="cierre-items">
+        <div class="cierre-item red"><strong>Concentración Santander:</strong> el 52% de la demanda es segmento de entrada. Growth define el perfil de lead. Compras no puede diversificar partners si la demanda solo pide los modelos más asequibles de Santander.</div>
+        <div class="cierre-item red"><strong>Círculo vicioso de pedidos a fábrica:</strong> Compras trae ofertas de Athlon, Kinto, Ayvens. Growth las rechaza por falta de volumen previo. El bloqueo es de proceso interdepartamental.</div>
+        <div class="cierre-item red"><strong>REVEL UF alto:</strong> Precio objetivo fijado por Growth por debajo del PVP base real. Ninguna negociación con fabricante puede cerrar esa brecha si el precio de venta está artificialmente bajo.</div>
+        <div class="cierre-item red"><strong>Retrasos en entrega:</strong> el 79% de los retrasos ocurren porque el cliente no completa el Onboarding antes de que su coche llegue a Entregable desde. Esto no lo controla Compras.</div>
+      </div>
+      <div style="margin-top:10px;padding:14px 16px;background:rgba(0,212,180,.08);border:1px solid rgba(0,212,180,.2);border-radius:10px;font-size:13px;line-height:1.7;font-weight:500;">
+        La conversación que hay que tener no es solo de Compras — es de <strong style="color:var(--teal);">alineación entre equipos</strong>. Los objetivos de diversificación, REVEL UF y plazos requieren decisiones de <strong style="color:var(--teal);">Growth, dirección y negociación de alto nivel</strong> (Ayvens). Compras ya está haciendo su parte.
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<!-- NAV -->
+<div class="nav">
+  <button class="nav-btn" onclick="go(cur-1)">&#8592;</button>
+  <div class="dots" id="dots"></div>
+  <span class="nav-count" id="cnt">1 / 10</span>
+  <button class="nav-btn" onclick="go(cur+1)">&#8594;</button>
+</div>
+
+<script>
+const N = 10;
+let cur = 1;
+let chartsBuilt = false;
+
+const dotsEl = document.getElementById('dots');
+for (let i = 1; i <= N; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 1 ? ' active' : '');
+  d.onclick = () => go(i);
+  dotsEl.appendChild(d);
+}
+
+function go(n) {
+  n = Math.max(1, Math.min(N, n));
+  if (n === cur) return;
+  const prev = document.getElementById('s' + cur);
+  prev.classList.remove('active');
+  prev.classList.add('out');
+  setTimeout(() => prev.classList.remove('out'), 380);
+  cur = n;
+  document.getElementById('s' + cur).classList.add('active');
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === cur - 1));
+  document.getElementById('cnt').textContent = cur + ' / ' + N;
+  document.getElementById('progress').style.width = (cur / N * 100) + '%';
+  if (cur === 3 && !chartsBuilt) { buildCharts(); chartsBuilt = true; }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') go(cur + 1);
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp') go(cur - 1);
+});
+let tx = 0;
+document.addEventListener('touchstart', e => tx = e.touches[0].clientX);
+document.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - tx; if (dx<-40) go(cur+1); if (dx>40) go(cur-1); });
+document.getElementById('progress').style.width = (1/N*100) + '%';
+
+// ─── SLIDE 5: INTERACTIVE FILTERS ───
+const DATA = {
+  all: {
+    all: { w:-1, x:16, std:40.8, n:3133, pct_con:20.9, n_con:654, n_sin:2479, x_con:-4, x_sin:20 },
+    con: { w:-31, x:-4, std:44.3, n:654 },
+    sin: { w:3,  x:20, std:36.6, n:2479 }
+  },
+  wr: {
+    all: { w:-1, x:16, std:38.5, n:2207, pct_con:20.1, n_con:443, n_sin:1764, x_con:-5, x_sin:19.5 },
+    con: { w:-29, x:-5, std:41.2, n:443 },
+    sin: { w:2,  x:19.5, std:35.1, n:1764 }
+  }
+};
+
+let fModels = 'all', fOnb = 'all';
+
+function setFilter(type, val) {
+  if (type === 'models') {
+    fModels = val;
+    document.getElementById('btn-all-models').classList.toggle('active', val==='all');
+    document.getElementById('btn-wr-models').classList.toggle('active', val==='wr');
+  } else {
+    fOnb = val;
+    ['all','con','sin'].forEach(v => document.getElementById('btn-'+v+'-onb').classList.toggle('active', v===val));
+  }
+  updateSlide5();
+}
+
+function fmt(v, suffix='') {
+  if (v === null || v === undefined) return '—';
+  const rounded = Math.round(v * 10) / 10;
+  const sign = rounded > 0 ? '+' : '';
+  return sign + rounded + (suffix || ' días');
+}
+
+function updateSlide5() {
+  const base = DATA[fModels];
+  const d = fOnb === 'all' ? base.all : fOnb === 'con' ? base.con : base.sin;
+  const totalN = base.all.n;
+
+  // W metric — only meaningful for all/con/sin
+  const wVal = d.w;
+  const wEl = document.getElementById('m-w');
+  wEl.textContent = fmt(wVal);
+  wEl.className = 'metric-val ' + (wVal <= 0 ? 'green' : 'red');
+
+  // X metric
+  const xVal = d.x;
+  const xEl = document.getElementById('m-x');
+  xEl.textContent = fmt(xVal);
+  xEl.className = 'metric-val ' + (xVal <= 10 ? (xVal <= 0 ? 'green' : 'amber') : 'red');
+  document.getElementById('m-x-sub').textContent = xVal <= 0 ? '¡Por debajo del objetivo 4!' : xVal <= 10 ? 'Obj 3 cumplido ✅' : 'Obj 3: ≤10d · Obj 4: 0d';
+
+  // N
+  document.getElementById('m-n').textContent = d.n.toLocaleString('es');
+  document.getElementById('m-n-sub').textContent = ((d.n / totalN) * 100).toFixed(1) + '% de la muestra ' + (fModels==='wr' ? '(WR)' : '');
+
+  // Std
+  document.getElementById('m-std').textContent = '±' + (d.std || '—') + 'd';
+
+  // Split cards — show when fOnb === 'all'
+  const showSplit = fOnb === 'all';
+  document.getElementById('card-con').style.opacity = showSplit ? '1' : '0.4';
+  document.getElementById('card-sin').style.opacity = showSplit ? '1' : '0.4';
+
+  if (showSplit) {
+    const conPct = base.all.pct_con.toFixed(1);
+    const sinPct = (100 - base.all.pct_con).toFixed(1);
+    document.getElementById('pct-con').textContent = '🟢 ' + conPct + '% de los deals (' + base.all.n_con + ')';
+    document.getElementById('pct-sin').textContent = '🔴 ' + sinPct + '% de los deals (' + base.all.n_sin + ')';
+    document.getElementById('val-con').textContent = fmt(base.all.x_con);
+    document.getElementById('val-sin').textContent = fmt(base.all.x_sin);
+  }
+}
+
+// ─── CHARTS ───
+function buildCharts() {
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.borderColor = 'rgba(255,255,255,0.07)';
+  const baseOpts = {
+    responsive:true, maintainAspectRatio:false, indexAxis:'y',
+    plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.parsed.x.toFixed(1)+'%'}} },
+    scales:{
+      x:{ min:0, max:100, ticks:{callback:v=>v+'%',font:{size:10}}, grid:{color:'rgba(255,255,255,0.06)'} },
+      y:{ grid:{display:false}, ticks:{font:{size:11}} }
+    }
+  };
+  new Chart(document.getElementById('c-q1'), {
+    type:'bar',
+    data:{
+      labels:['Santander','Athlon','KINTO','DRIVALIA','LEASYS'],
+      datasets:[
+        { data:[77.0,20.8,1.8,0.2,0.2], backgroundColor:['#ff5555','#00d4b4','#fbbf24','#818cf8','#f472b6'], borderRadius:4 },
+        { type:'line', data:[45,45,45,45,45], borderColor:'#fbbf24', borderWidth:2, borderDash:[5,4], pointRadius:0, fill:false }
+      ]
+    }, options:{...baseOpts}
+  });
+  new Chart(document.getElementById('c-q2'), {
+    type:'bar',
+    data:{
+      labels:['Santander','KINTO','Athlon','DRIVALIA','LEASYS'],
+      datasets:[
+        { data:[66.6,17.5,15.6,0.2,0.1], backgroundColor:['#ff5555','#fbbf24','#00d4b4','#818cf8','#f472b6'], borderRadius:4 },
+        { type:'line', data:[25,25,25,25,25], borderColor:'#fbbf24', borderWidth:2, borderDash:[5,4], pointRadius:0, fill:false }
+      ]
+    }, options:{...baseOpts}
+  });
+}
+</script>
+</body>
+</html>
